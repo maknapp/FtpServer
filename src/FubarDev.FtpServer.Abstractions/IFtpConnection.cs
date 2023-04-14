@@ -29,6 +29,10 @@ namespace FubarDev.FtpServer
         /// </summary>
         event EventHandler? Closed;
 
+        TimeSpan LastActivity { get; }
+
+        string Id { get; }
+
         /// <summary>
         /// Gets the connection services.
         /// </summary>
@@ -80,6 +84,12 @@ namespace FubarDev.FtpServer
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         CancellationToken CancellationToken { get; }
+
+        /// <summary>
+        /// Used by the data connection to keep the FTP connection from timing out.
+        /// </summary>
+        /// <param name="keepAlive">When true, the FTP connection idle time will be zero.</param>
+        void KeepAlive(bool keepAlive);
 
         /// <summary>
         /// Starts processing of messages for this connection.

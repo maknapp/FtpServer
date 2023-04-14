@@ -110,6 +110,8 @@ namespace FubarDev.FtpServer
 
         private readonly IdleCheck _idleCheck;
 
+        private readonly Stopwatch _activityStopwatch;
+
 #pragma warning disable 612
         [Obsolete]
         private readonly FtpConnectionKeepAlive _keepAlive;
@@ -176,6 +178,8 @@ namespace FubarDev.FtpServer
             };
 
             _loggerScope = logger?.BeginScope(properties);
+
+            _activityStopwatch = new Stopwatch();
 
             _socket = socket;
             _connectionAccessor = connectionAccessor;
@@ -251,6 +255,10 @@ namespace FubarDev.FtpServer
         /// <inheritdoc />
         public event EventHandler? Closed;
 
+        public TimeSpan LastActivity => _activityStopwatch.Elapsed;
+
+        public string Id => ConnectionId;
+
         /// <inheritdoc />
         public IServiceProvider ConnectionServices { get; }
 
@@ -311,6 +319,22 @@ namespace FubarDev.FtpServer
         /// Gets the cancellation token to use to signal a task cancellation.
         /// </summary>
         CancellationToken IFtpConnection.CancellationToken => _cancellationTokenSource.Token;
+
+        /// <summary>
+        /// Sets the last activity time to zero when keepAlive is true.
+        /// </summary>
+        /// <param name="keepAlive">When true, the connection will not time out.</param>
+        public void KeepAlive(bool keepAlive)
+        {
+            if (keepAlive)
+            {
+                _activityStopwatch.Reset();
+            }
+            else
+            {
+                _activityStopwatch.Restart();
+            }
+        }
 
         /// <inheritdoc />
         public async Task StartAsync()
@@ -878,11 +902,17 @@ namespace FubarDev.FtpServer
             public bool CheckIfAlive()
             {
                 var context = new FtpConnectionCheckContext(_connection);
-                var checkResults = _checks
-                   .Select(x => x.Check(context))
-                   .ToArray();
-                return checkResults.Select(x => x.IsUsable)
-                   .Aggregate(true, (pv, item) => pv && item);
+
+                foreach (var check in _checks)
+                {
+                    var value = check.Check(context);
+                    if (!value.IsUsable)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
 
             public void SetChecks(IEnumerable<IFtpConnectionCheck> checks)

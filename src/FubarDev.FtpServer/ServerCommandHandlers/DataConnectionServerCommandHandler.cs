@@ -93,18 +93,27 @@ namespace FubarDev.FtpServer.ServerCommandHandlers
         {
             private readonly string _transferId = Guid.NewGuid().ToString("N");
             private readonly IFtpConnectionEventHost _eventHost;
+            private readonly IFtpConnection _connection;
 
             public ConnectionKeepAlive(
                 IFtpConnection connection,
                 FtpCommand command)
             {
+                _connection = connection;
                 _eventHost = connection.Features.Get<IFtpConnectionEventHost>();
+
+                // Transferring data, so stop activity timer
+                // and keep it at zero until data transfer finishes.
+                _connection.KeepAlive(true);
+
                 _eventHost.PublishEvent(new FtpConnectionDataTransferStartedEvent(_transferId, command));
             }
 
             /// <inheritdoc />
             public void Dispose()
             {
+                _connection.KeepAlive(false);
+
                 _eventHost.PublishEvent(new FtpConnectionDataTransferStoppedEvent(_transferId));
             }
         }
