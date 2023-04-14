@@ -422,8 +422,12 @@ namespace FubarDev.FtpServer
                         _logger?.LogError(ex, "Failed to stop the client connection: {ErrorMessage}", ex.Message);
                     }
 
+                    // Features collection may be modified, so copy into
+                    // a new collection so it can be enumerated safely
+                    var featuresToDispose = Features.ToArray();
+
                     // Dispose all features (if disposable)
-                    foreach (var featureItem in Features)
+                    foreach (var featureItem in featuresToDispose)
                     {
                         try
                         {
